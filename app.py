@@ -26,7 +26,7 @@ MODELS_DIR = os.path.join(os.path.dirname(__file__), 'models')
 
 FEATURE_NAMES = ['N', 'P', 'K', 'temperature', 'humidity', 'ph', 'rainfall']
 
-os.environ["GOOGLE_API_KEY"] = "AIzaSyDuCiZoRka1euEpvMgIoy-m7cRoWWjUbBQ"
+os.environ["GOOGLE_API_KEY"] = "Enter-Yours"
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 
 gemini_model = genai.GenerativeModel('gemini-2.5-flash')
@@ -333,4 +333,5 @@ def form_predict():
 
 if __name__ == '__main__':
     load_models()
+
     APP.run(host='0.0.0.0', port=5000, debug=True)

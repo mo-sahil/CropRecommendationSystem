@@ -225,10 +225,19 @@
       <div id="aiSection" class="ai-section">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <strong>Gemini Analysis:</strong>
-          <button id="speakBtn" class="btn-secondary" style="display:none; font-size: 0.8rem; padding: 4px 8px;">
-            🔊 Listen
-          </button>
+
+          <div id="audioControls">
+            <button id="speakBtn" class="btn-secondary" style="display:none; font-size: 0.8rem; padding: 4px 8px;">
+              🔊 Listen
+            </button>
+
+            <button id="stopBtn" class="btn-secondary"
+              style="display:none; font-size: 0.8rem; padding: 4px 8px; background-color: #fff5f5; color: #d73a49; border-color: #d73a49;">
+              🛑 Stop
+            </button>
+          </div>
         </div>
+
         <p id="aiContent" style="white-space: pre-line; margin-top: 10px;"></p>
         <audio id="audioPlayer" style="display:none"></audio>
       </div>
@@ -288,66 +297,97 @@
       }
     });
 
+    // ... (Previous code for predictForm remains the same) ...
+
     // Gemini Logic
     document.getElementById('askGeminiBtn').addEventListener('click', async () => {
-      const aiSection = document.getElementById('aiSection');
-      const aiContent = document.getElementById('aiContent');
-      const speakBtn = document.getElementById('speakBtn');
-      const language = document.getElementById('languageSelector').value;
+        const aiSection = document.getElementById('aiSection');
+        const aiContent = document.getElementById('aiContent');
+        const speakBtn = document.getElementById('speakBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const language = document.getElementById('languageSelector').value;
+        
+        // Reset UI
+        aiSection.style.display = 'block';
+        speakBtn.style.display = 'none';
+        stopBtn.style.display = 'none';
+        
+        aiContent.textContent = `Analyzing soil data in ${language}...`;
 
-      aiSection.style.display = 'block';
-      speakBtn.style.display = 'none'; // Hide until text is ready
-      aiContent.textContent = `Analyzing soil data in ${language}...`;
-
-      try {
-        const response = await fetch('/explain', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            features: lastData,
-            prediction: lastTopPrediction,
-            language: language
-          })
-        });
-        const data = await response.json();
-
-        // Show text
-        aiContent.textContent = data.explanation;
-
-        // Show Speak Button
-        speakBtn.style.display = 'inline-block';
-
-        // --- Attach Click Event for TTS ---
-        speakBtn.onclick = async () => {
-          speakBtn.textContent = "⏳ Loading Audio...";
-          try {
-            const audioResp = await fetch('/tts', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                text: data.explanation,
-                language: language
-              })
+        try {
+            // 1. Get Explanation
+            const response = await fetch('/explain', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    features: lastData, 
+                    prediction: lastTopPrediction,
+                    language: language 
+                })
             });
+            const data = await response.json();
+            aiContent.textContent = data.explanation;
+            
+            // Show Listen Button
+            speakBtn.style.display = 'inline-block';
+            speakBtn.textContent = "🔊 Listen";
 
-            if (!audioResp.ok) throw new Error('Audio failed');
+            // --- AUDIO LOGIC ---
+            
+            // 2. Handle "Listen" Click
+            speakBtn.onclick = async () => {
+                speakBtn.textContent = "⏳ Loading...";
+                speakBtn.disabled = true;
 
-            const blob = await audioResp.blob();
-            const audioUrl = URL.createObjectURL(blob);
-            const audio = document.getElementById('audioPlayer');
-            audio.src = audioUrl;
-            audio.play();
+                try {
+                    const audioResp = await fetch('/tts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            text: data.explanation, 
+                            language: language 
+                        })
+                    });
+                    
+                    if (!audioResp.ok) throw new Error('Audio failed');
 
-            speakBtn.textContent = "🔊 Listen Again";
-          } catch (err) {
-            speakBtn.textContent = "Error playing audio";
-            console.error(err);
-          }
-        };
+                    const blob = await audioResp.blob();
+                    const audioUrl = URL.createObjectURL(blob);
+                    
+                    audioPlayer.src = audioUrl;
+                    audioPlayer.play();
+                    
+                    // Toggle Buttons
+                    speakBtn.style.display = 'none'; // Hide Listen
+                    stopBtn.style.display = 'inline-block'; // Show Stop
+                    speakBtn.disabled = false;
+                    speakBtn.textContent = "🔊 Listen"; // Reset text for next time
 
-      } catch (err) {
-        aiContent.textContent = 'AI Error: ' + err.message;
-      }
+                } catch (err) {
+                    speakBtn.textContent = "Error";
+                    speakBtn.disabled = false;
+                    console.error(err);
+                }
+            };
+
+            // 3. Handle "Stop" Click
+            stopBtn.onclick = () => {
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0; // Rewind to start
+                stopBtn.style.display = 'none';
+                speakBtn.style.display = 'inline-block';
+            };
+
+            // 4. Handle Audio Finishing Naturally
+            audioPlayer.onended = () => {
+                stopBtn.style.display = 'none';
+                speakBtn.style.display = 'inline-block';
+            };
+
+        } catch (err) {
+            aiContent.textContent = 'AI Error: ' + err.message;
+        }
     });
   </script>
 </body>

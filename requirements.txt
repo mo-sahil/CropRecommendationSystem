@@ -2,7 +2,6 @@ flask
 joblib
 numpy
 pandas
-python-dotenv
 scikit-learn
 google-generativeai
 gTTS
